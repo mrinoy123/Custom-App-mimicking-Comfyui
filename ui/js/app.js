@@ -98,6 +98,52 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // GitHub 1-Click Pull & Push
+  const btnPullGit = document.getElementById("btn-pull-github");
+  const btnPushGit = document.getElementById("btn-push-github");
+
+  if (btnPullGit) {
+    btnPullGit.addEventListener("click", async () => {
+      btnPullGit.disabled = true;
+      btnPullGit.textContent = "⏳ Pulling...";
+      try {
+        const resp = await fetch("/api/github/pull", { method: "POST" });
+        const data = await resp.json();
+        if (data.success) {
+          alert(`✅ Synced from GitHub!\n\n${data.message}`);
+        } else {
+          alert(`❌ Pull failed:\n\n${data.error}`);
+        }
+      } catch (err) {
+        alert(`❌ Pull error: ${err.message}`);
+      } finally {
+        btnPullGit.disabled = false;
+        btnPullGit.textContent = "⬇️ Pull GitHub";
+      }
+    });
+  }
+
+  if (btnPushGit) {
+    btnPushGit.addEventListener("click", async () => {
+      btnPushGit.disabled = true;
+      btnPushGit.textContent = "⏳ Pushing...";
+      try {
+        const resp = await fetch("/api/github/push", { method: "POST" });
+        const data = await resp.json();
+        if (data.success) {
+          alert(`✅ Successfully pushed local changes to GitHub!\n\n${data.message}`);
+        } else {
+          alert(`❌ Push failed:\n\n${data.error}`);
+        }
+      } catch (err) {
+        alert(`❌ Push error: ${err.message}`);
+      } finally {
+        btnPushGit.disabled = false;
+        btnPushGit.textContent = "⬆️ Push GitHub";
+      }
+    });
+  }
+
   // 8. Queue Execution & Live SSE Listener
   const btnQueue = document.getElementById("btn-queue");
   const statusSpinner = document.getElementById("status-spinner");

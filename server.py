@@ -8,6 +8,8 @@ import os
 import json
 import asyncio
 import logging
+import shutil
+import subprocess
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -70,6 +72,43 @@ def api_purge_vram():
     """Manually purges PyTorch CUDA cache, triggers gc, and returns updated telemetry."""
     purge_vram()
     return {"purged": True, "vram": get_vram_info()}
+
+
+def _find_git_cmd():
+    for p in ["git", r"C:\Program Files\Git\cmd\git.exe", r"C:\Program Files\Git\bin\git.exe"]:
+        if shutil.which(p) or os.path.isfile(p):
+            return p
+    return "git"
+
+
+@app.post("/api/github/pull")
+def api_github_pull():
+    """Pulls latest updates from GitHub origin main into local PC."""
+    git_bin = _find_git_cmd()
+    try:
+        res = subprocess.run([git_bin, "pull", "origin", "main"], capture_output=True, text=True, check=True)
+        return {"success": True, "message": res.stdout.strip() or "Already up to date."}
+    except subprocess.CalledProcessError as e:
+        return {"success": False, "error": e.stderr.strip() or str(e)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/github/push")
+def api_github_push():
+    """Stages local changes, commits, and pushes to GitHub origin main."""
+    git_bin = _find_git_cmd()
+    try:
+        subprocess.run([git_bin, "add", "."], check=True)
+        diff = subprocess.run([git_bin, "status", "--porcelain"], capture_output=True, text=True)
+        if diff.stdout.strip():
+            subprocess.run([git_bin, "commit", "-m", "Sync updates from MicroEngine UI"], check=True)
+        res = subprocess.run([git_bin, "push", "origin", "main"], capture_output=True, text=True, check=True)
+        return {"success": True, "message": "Pushed to GitHub successfully!"}
+    except subprocess.CalledProcessError as e:
+        return {"success": False, "error": e.stderr.strip() or str(e)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/nodes")
