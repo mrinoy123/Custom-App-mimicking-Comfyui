@@ -284,23 +284,23 @@ class GraphCanvas {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.zoom, this.zoom);
 
-    // 1. Draw Connections (Wires) - Crisp #ffffff with drop shadow
+    // 1. Draw Connections (Wires) - Smooth dark slate with subtle drop shadow
     for (const conn of this.connections) {
       const p1 = this.getPinCoords(conn.fromNode, conn.fromPin, true);
       const p2 = this.getPinCoords(conn.toNode, conn.toPin, false);
 
       ctx.save();
-      ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = "rgba(0, 0, 0, 0.15)";
+      ctx.shadowBlur = 4;
       ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 3;
+      ctx.shadowOffsetY = 2;
 
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       const dx = Math.abs(p2.x - p1.x) * 0.5;
       ctx.bezierCurveTo(p1.x + dx, p1.y, p2.x - dx, p2.y, p2.x, p2.y);
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 3.0;
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 2.8;
       ctx.lineCap = "round";
       ctx.stroke();
       ctx.restore();
@@ -312,13 +312,13 @@ class GraphCanvas {
       const p2 = this.currentMousePos;
 
       ctx.save();
-      ctx.shadowColor = "rgba(255, 92, 53, 0.6)";
-      ctx.shadowBlur = 10;
+      ctx.shadowColor = "rgba(255, 87, 34, 0.4)";
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.moveTo(p1.x, p1.y);
       const dx = Math.abs(p2.x - p1.x) * 0.5;
       ctx.bezierCurveTo(p1.x + dx, p1.y, p2.x - dx, p2.y, p2.x, p2.y);
-      ctx.strokeStyle = "#ff5c35";
+      ctx.strokeStyle = "#ff5722";
       ctx.lineWidth = 2.5;
       ctx.setLineDash([6, 4]);
       ctx.stroke();
@@ -336,16 +336,16 @@ class GraphCanvas {
   _renderNode(ctx, node) {
     const isExecuting = this.executingNodeId === node.id;
     
-    // Node Card Shadow & Base (High-contrast against Studio Grey #7e7e88)
+    // Node Card Shadow & Base (White card on light canvas)
     ctx.save();
-    ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
-    ctx.shadowBlur = 14;
+    ctx.shadowColor = "rgba(0, 0, 0, 0.08)";
+    ctx.shadowBlur = 12;
     ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 5;
+    ctx.shadowOffsetY = 4;
 
-    ctx.fillStyle = "#1a1d26";
-    ctx.strokeStyle = isExecuting ? "#10b981" : "rgba(255, 255, 255, 0.12)";
-    ctx.lineWidth = isExecuting ? 3 : 1;
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = isExecuting ? "#16a34a" : "#e2e8f0";
+    ctx.lineWidth = isExecuting ? 3 : 1.2;
 
     ctx.beginPath();
     ctx.roundRect(node.x, node.y, node.width, node.height, 8);
@@ -377,7 +377,7 @@ class GraphCanvas {
       ctx.arc(node.x, py, 5, 0, Math.PI * 2);
       ctx.fill();
       // Label
-      ctx.fillStyle = "#9ca3af";
+      ctx.fillStyle = "#334155";
       ctx.fillText(pName, node.x + 12, py + 4);
       iIdx++;
     }
@@ -387,12 +387,12 @@ class GraphCanvas {
     for (const [pName, pType] of Object.entries(node.outputs)) {
       const py = node.y + headerH + 20 + oIdx * spacing;
       // Pin dot
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = "#16a34a";
       ctx.beginPath();
       ctx.arc(node.x + node.width, py, 5, 0, Math.PI * 2);
       ctx.fill();
       // Label
-      ctx.fillStyle = "#9ca3af";
+      ctx.fillStyle = "#334155";
       const w = ctx.measureText(pName).width;
       ctx.fillText(pName, node.x + node.width - w - 12, py + 4);
       oIdx++;
@@ -400,7 +400,7 @@ class GraphCanvas {
 
     // Parameter Summary
     let fIdx = Math.max(iIdx, oIdx);
-    ctx.fillStyle = "#6b7280";
+    ctx.fillStyle = "#64748b";
     for (const [k, v] of Object.entries(node.values)) {
       const py = node.y + headerH + 25 + fIdx * 20;
       const str = `${k}: ${String(v).slice(0, 20)}`;

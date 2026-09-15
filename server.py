@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from engine.memory import get_vram_info
+from engine.memory import get_vram_info, purge_vram
 from engine.storage import StorageManager
 from engine.database import DatabaseManager
 from engine.workflow_converter import WorkflowConverter
@@ -111,6 +111,97 @@ def api_github_push():
         return {"success": False, "error": str(e)}
 
 
+# --------------------------------------------------------------------------
+# Environment & Cloud Database Management Endpoints
+# --------------------------------------------------------------------------
+
+def _mask_secret(val: Optional[str]) -> str:
+    if not val:
+        return ""
+    if len(val) <= 8:
+        return "********"
+    return val[:4] + "********" + val[-4:]
+
+
+@app.get("/api/env")
+def api_get_env():
+    """Returns current environment variable status with sensitive secrets masked."""
+    return {
+        "DATABASE_URL": _mask_secret(os.getenv("DATABASE_URL")),
+        "R2_ACCOUNT_ID": _mask_secret(os.getenv("R2_ACCOUNT_ID")),
+        "R2_ACCESS_KEY_ID": _mask_secret(os.getenv("R2_ACCESS_KEY_ID")),
+        "R2_SECRET_ACCESS_KEY": _mask_secret(os.getenv("R2_SECRET_ACCESS_KEY")),
+        "R2_BUCKET_NAME": os.getenv("R2_BUCKET_NAME", ""),
+        "R2_PUBLIC_DOMAIN": os.getenv("R2_PUBLIC_DOMAIN", ""),
+        "has_database_url": bool(os.getenv("DATABASE_URL")),
+        "has_r2": bool(os.getenv("R2_ACCESS_KEY_ID") and os.getenv("R2_SECRET_ACCESS_KEY")),
+    }
+
+
+class EnvSaveRequest(BaseModel):
+    DATABASE_URL: Optional[str] = None
+    R2_ACCOUNT_ID: Optional[str] = None
+    R2_ACCESS_KEY_ID: Optional[str] = None
+    R2_SECRET_ACCESS_KEY: Optional[str] = None
+    R2_BUCKET_NAME: Optional[str] = None
+    R2_PUBLIC_DOMAIN: Optional[str] = None
+
+
+@app.post("/api/env")
+def api_save_env(req: EnvSaveRequest):
+    """
+    Saves environment variables to .env file on Kaggle or local PC,
+    hot-reloads runtime managers, and returns connection diagnostics.
+    """
+    global db_mgr, storage_mgr
+    updates = {}
+    for field, val in req.dict().items():
+        if val is not None and val.strip() and not val.startswith("****"):
+            os.environ[field] = val.strip()
+            updates[field] = val.strip()
+
+    # Persist to .env file
+    env_lines = []
+    if os.path.exists(".env"):
+        with open(".env", "r", encoding="utf-8") as f:
+            for line in f:
+                line_strip = line.strip()
+                if "=" in line_strip and not line_strip.startswith("#"):
+                    k = line_strip.split("=")[0].strip()
+                    if k not in updates:
+                        env_lines.append(line.rstrip())
+    for k, v in updates.items():
+        env_lines.append(f"{k}={v}")
+
+    with open(".env", "w", encoding="utf-8") as f:
+        f.write("\n".join(env_lines) + "\n")
+
+    # Hot-reload managers
+    if "DATABASE_URL" in updates:
+        db_mgr.reconnect(updates["DATABASE_URL"])
+    if any(k.startswith("R2_") for k in updates):
+        storage_mgr = StorageManager()
+
+    db_diag = db_mgr.test_connection()
+    return {
+        "success": True,
+        "updated_keys": list(updates.keys()),
+        "db_status": db_diag
+    }
+
+
+@app.get("/api/db/status")
+def api_db_status():
+    """Returns real-time connection status and table statistics for Aiven PostgreSQL."""
+    return db_mgr.test_connection()
+
+
+@app.post("/api/db/sync")
+def api_db_sync():
+    """Triggers bidirectional sync between local JSON files and Aiven PostgreSQL."""
+    return db_mgr.sync_workflows()
+
+
 @app.get("/api/nodes")
 def api_nodes():
     """Returns registered native and converted node adapters."""
@@ -119,8 +210,9 @@ def api_nodes():
 
 @app.get("/api/workflows")
 def api_list_workflows():
-    """Returns saved workflows from Aiven database or local disk."""
-    return db_mgr.list_workflows()
+    """Returns saved workflows with hierarchy topology metadata."""
+    wfs = db_mgr.list_workflows()
+    return {"workflows": wfs}
 
 
 @app.get("/api/workflows/{name}")
@@ -136,13 +228,43 @@ class WorkflowSaveRequest(BaseModel):
     name: str
     graph_json: Dict[str, Any]
     description: Optional[str] = ""
+    title: Optional[str] = None
+    role: Optional[str] = "master"
+    parent_id: Optional[str] = None
+    active: Optional[bool] = False
 
 
 @app.post("/api/workflows")
 def api_save_workflow(req: WorkflowSaveRequest):
-    """Saves workflow graph to Aiven PostgreSQL cloud database."""
-    success = db_mgr.save_workflow(req.name, req.graph_json, req.description)
+    """Saves workflow graph to Aiven PostgreSQL cloud database or local storage."""
+    success = db_mgr.save_workflow(
+        name=req.name,
+        graph_json=req.graph_json,
+        description=req.description or "",
+        role=req.role or "master",
+        parent_id=req.parent_id,
+        active=req.active or False,
+        title=req.title or req.name
+    )
     return {"success": success, "name": req.name}
+
+
+class WorkflowActiveRequest(BaseModel):
+    active: bool
+
+
+@app.post("/api/workflows/{name}/active")
+def api_toggle_workflow_active(name: str, req: WorkflowActiveRequest):
+    """Toggles workflow active state."""
+    success = db_mgr.toggle_workflow_active(name, req.active)
+    return {"success": success, "name": name, "active": req.active}
+
+
+@app.delete("/api/workflows/{name}")
+def api_delete_workflow(name: str):
+    """Deletes a workflow."""
+    success = db_mgr.delete_workflow(name)
+    return {"success": success, "name": name}
 
 
 class WorkflowConvertRequest(BaseModel):

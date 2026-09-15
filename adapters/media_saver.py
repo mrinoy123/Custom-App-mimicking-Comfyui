@@ -54,8 +54,6 @@ class MediaSaverAdapter(BaseAdapter):
             if IMAGEIO_AVAILABLE and isinstance(images, np.ndarray):
                 imageio.imwrite(target_path, images)
             else:
-                # Create a simple mock PNG file
-                from PIL import Image if 'PIL' in globals() else None
                 try:
                     from PIL import Image
                     img = Image.fromarray(images if isinstance(images, np.ndarray) else np.zeros((512,512,3), dtype=np.uint8))

@@ -3,42 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Custom ComfyUI Micro-Engine</title>
+  <title>Custom ComfyUI Micro-Engine - Decoupled Studio</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <!-- Top Navigation Header -->
+  <!-- Top Navigation Header (Modeled directly after reference orchestration studio) -->
   <header class="app-header">
     <div class="header-left">
-      <div class="logo">
-        <span class="logo-icon">⚡</span>
-        <span class="logo-text">MicroEngine</span>
-        <span class="badge">Decoupled</span>
+      <!-- Workflows Badge Dropdown & Breadcrumb -->
+      <div class="workflow-badge-wrap">
+        <button id="btn-wf-dropdown" class="badge-btn-orange">
+          <span>📁 Workflows</span>
+          <span class="dropdown-arrow">▾</span>
+        </button>
+        <div id="wf-dropdown-menu" class="wf-dropdown-menu" style="display: none;"></div>
+        <span class="breadcrumb-slash">/</span>
+        <span id="active-wf-breadcrumb" class="breadcrumb-active">Parent-Workflow-AB</span>
       </div>
 
-      <!-- Tab Switcher -->
+      <!-- Navigation Tabs -->
       <nav class="tab-nav">
-        <button class="tab-btn active" data-tab="tab-canvas">🎨 Workflow Canvas</button>
-        <button class="tab-btn" data-tab="tab-workflow-converter">🔄 Workflow Converter</button>
-        <button class="tab-btn" data-tab="tab-node-converter">⚡ Node Converter</button>
+        <button class="tab-btn active" data-tab="tab-canvas">
+          <span class="tab-icon">☍</span> Visual Canvas
+        </button>
+        <button class="tab-btn" data-tab="tab-logs">
+          <span class="tab-icon">&gt;_</span> Visual Logs
+        </button>
+        <button class="tab-btn" data-tab="tab-hierarchy">
+          <span class="tab-icon">📑</span> Workflows Hierarchy
+        </button>
+        <button class="tab-btn" data-tab="tab-database">
+          <span class="tab-icon">🗄️</span> Aiven PostgreSQL <span id="db-status-dot" class="status-dot-green"></span>
+        </button>
+        <button class="tab-btn" data-tab="tab-secrets">
+          <span class="tab-icon">🔑</span> Secrets &amp; Env
+        </button>
+        <button class="tab-btn" data-tab="tab-workflow-converter">
+          <span class="tab-icon">🔄</span> Workflow Converter
+        </button>
+        <button class="tab-btn" data-tab="tab-node-converter">
+          <span class="tab-icon">⚡</span> Node Converter
+        </button>
       </nav>
     </div>
 
-    <!-- Hardware & Telemetry Bar -->
+    <!-- Hardware & Cloud Controls -->
     <div class="header-right">
       <div class="telemetry-pill">
         <span class="dot live"></span>
         <span class="telemetry-label">VRAM:</span>
-        <span id="vram-val" class="telemetry-value">0.0 GB</span>
+        <span id="vram-val" class="telemetry-value">0.0 / 15.0 GB</span>
       </div>
-      <button id="btn-pull-github" class="btn btn-secondary" title="Pull latest updates from GitHub into PC">⬇️ Pull GitHub</button>
-      <button id="btn-push-github" class="btn btn-secondary" title="Push changes from PC to GitHub">⬆️ Push GitHub</button>
-      <button id="btn-save-db" class="btn btn-secondary">💾 Save to Aiven</button>
-      <button id="btn-queue" class="btn btn-primary">▶ Queue Execution</button>
+
+      <button id="btn-pull-github" class="btn btn-secondary btn-sm" title="Pull latest updates from GitHub into PC">⬇️ Pull</button>
+      <button id="btn-push-github" class="btn btn-secondary btn-sm" title="Push local changes to GitHub">⬆️ Push</button>
+
+      <button id="btn-execute" class="btn btn-orange-master">
+        <span id="execute-btn-label">▶ Execute Parent...</span>
+        <span class="master-badge">MASTER</span>
+      </button>
     </div>
   </header>
 
@@ -46,7 +73,7 @@
   <main class="main-container">
 
     <!-- ======================================================== -->
-    <!-- TAB 1: WORKFLOW CANVAS                                    -->
+    <!-- TAB 1: VISUAL CANVAS (WHITE SCREEN STUDIO)                -->
     <!-- ======================================================== -->
     <section id="tab-canvas" class="tab-pane active">
       <!-- Canvas Control Toolbar -->
@@ -59,7 +86,7 @@
             <option value="CLIPTextEncode">CLIP Text Encode (Prompt)</option>
             <option value="KSampler">KSampler (FlowMatch Euler)</option>
             <option value="VAEDecode">VAE Decode</option>
-            <option value="SaveImage">Save Image (PNG)</option>
+            <option value="SaveImage">Save Image (PNG &amp; Cloudflare R2)</option>
             <option value="SaveVideo">Save Video (MP4)</option>
           </select>
           <button id="btn-add-node" class="btn btn-sm btn-secondary">+ Add</button>
@@ -76,6 +103,7 @@
 
         <div class="toolbar-group">
           <button id="btn-toggle-inspector" class="btn btn-sm btn-secondary">🔬 Node Payload Inspector</button>
+          <button id="btn-save-db" class="btn btn-sm btn-secondary">💾 Save Aiven</button>
           <button id="btn-clear-canvas" class="btn btn-sm btn-danger">Clear</button>
         </div>
       </div>
@@ -100,7 +128,7 @@
             <div class="hud-device-name" id="hud-gpu-name">NVIDIA Tesla T4 (15.0 GB)</div>
             <div class="hud-meter-wrap">
               <div class="hud-meter-bar">
-                <div id="hud-meter-fill" class="hud-meter-fill" style="width: 25%;"></div>
+                <div id="hud-meter-fill" class="hud-meter-fill" style="width: 5%;"></div>
               </div>
               <div class="hud-meter-labels">
                 <span id="hud-vram-used">0.0 GB Used</span>
@@ -117,7 +145,7 @@
                 <span id="hud-stat-reserved" class="stat-val">0.0 GB</span>
               </div>
               <div class="hud-stat-item">
-                <span class="stat-label">Free</span>
+                <span class="stat-label">Free Headroom</span>
                 <span id="hud-stat-free" class="stat-val">15.0 GB</span>
               </div>
             </div>
@@ -128,21 +156,19 @@
         <aside id="inspector-panel" class="inspector-drawer">
           <div class="inspector-header">
             <div class="inspector-title">
-              <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">PayloadDiffEngine</span>
               <h4>Node Output Inspector</h4>
             </div>
             <button id="btn-close-inspector" class="btn-close">&times;</button>
           </div>
           
           <div class="inspector-controls">
-            <!-- Toggle: Isolated Delta vs Cumulative Full -->
             <div class="diff-toggle-group">
-              <button id="toggle-delta" class="diff-btn active">⚡ Isolated Delta (This Node Only)</button>
-              <button id="toggle-cumulative" class="diff-btn">📚 Cumulative Full (All Upstream)</button>
+              <button id="toggle-delta" class="diff-btn active">⚡ Isolated Delta</button>
+              <button id="toggle-cumulative" class="diff-btn">📚 Cumulative Full</button>
             </div>
             
             <div class="form-group" style="margin-top: 10px;">
-              <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: block;">Select Executed Node:</label>
+              <label>Select Executed Node:</label>
               <select id="inspector-node-select" style="width: 100%;">
                 <option value="">-- Run workflow to inspect outputs --</option>
               </select>
@@ -151,8 +177,8 @@
 
           <div class="inspector-content">
             <div class="inspector-meta" id="inspector-node-info">
-              <span class="meta-label">Node:</span> <span id="meta-node-name" class="meta-val">None</span>
-              <span class="meta-label" style="margin-left: 12px;">Mode:</span> <span id="meta-diff-mode" class="meta-val" style="color: #38bdf8;">Isolated Delta</span>
+              <span>Node:</span> <span id="meta-node-name" class="meta-val">None</span>
+              <span style="margin-left: 12px;">Mode:</span> <span id="meta-diff-mode" class="meta-val" style="color: #2563eb;">Isolated Delta</span>
             </div>
             <pre id="inspector-json-display" class="json-viewer">// Outputs and tensor metadata will appear here after execution</pre>
           </div>
@@ -162,67 +188,293 @@
     </section>
 
     <!-- ======================================================== -->
-    <!-- TAB 2: WORKFLOW CONVERTER & INSPECTOR                     -->
+    <!-- TAB 2: VISUAL LOGS                                       -->
     <!-- ======================================================== -->
-    <section id="tab-workflow-converter" class="tab-pane">
-      <div class="converter-container">
-        <div class="converter-header">
-          <h2>Workflow Ingestion, De-cluttering & Explainer</h2>
-          <p>Paste any ComfyUI JSON (e.g. from Civitai or GitHub). The engine prunes reroutes/notes, audits missing nodes, and explains the pipeline in plain English.</p>
-        </div>
-
-        <div class="converter-grid">
-          <!-- Input Box -->
-          <div class="card">
-            <h3>1. Paste External ComfyUI JSON</h3>
-            <textarea id="wf-json-input" placeholder="Paste workflow.json or workflow_api.json content here..."></textarea>
-            <div class="card-footer">
-              <button id="btn-analyze-wf" class="btn btn-primary">🔍 Analyze & De-clutter Workflow</button>
-            </div>
+    <section id="tab-logs" class="tab-pane">
+      <div class="studio-pane-container">
+        <div class="pane-header-row">
+          <div>
+            <h2>Visual Logs &amp; Real-time Diagnostics</h2>
+            <p class="pane-subtitle">Live Server-Sent Events (SSE) telemetry, execution dispatch logs, and Rolling 3-Run Aiven history.</p>
           </div>
-
-          <!-- Analysis Results -->
-          <div class="card">
-            <h3>2. Analysis & Compatibility Checklist</h3>
-            <div id="wf-audit-results" class="audit-box">
-              <p class="placeholder-text">Paste a workflow and click Analyze to view clutter reduction, missing custom nodes, and natural language explanation.</p>
-            </div>
-            <div class="card-footer actions-footer" id="wf-action-buttons" style="display: none;">
-              <button id="btn-load-cleaned-canvas" class="btn btn-success">📥 Load Cleaned Graph onto Canvas</button>
-              <button id="btn-export-python-script" class="btn btn-secondary">🐍 Export Standalone Kaggle Script</button>
-            </div>
+          <div class="pane-actions-row">
+            <button id="btn-clear-logs" class="btn btn-secondary btn-sm">Clear Terminal</button>
+            <button id="btn-refresh-history" class="btn btn-secondary btn-sm">🔄 Refresh History</button>
           </div>
         </div>
 
-        <!-- Python Script Output Viewer -->
-        <div id="python-export-wrapper" class="script-box" style="display: none;">
-          <h3>Generated Standalone Kaggle Python Script</h3>
-          <textarea id="python-script-text" readonly></textarea>
+        <!-- Terminal Output Screen -->
+        <div class="terminal-card">
+          <div class="terminal-bar">
+            <div class="terminal-dots">
+              <span class="dot-red"></span>
+              <span class="dot-yellow"></span>
+              <span class="dot-green"></span>
+            </div>
+            <div class="terminal-title">runtime_dispatch.log</div>
+            <div id="terminal-status-indicator" class="terminal-status">STREAM READY</div>
+          </div>
+          <div id="terminal-content" class="terminal-body">
+            <div class="log-line log-system">[00:00:00] [SYSTEM] MicroEngine initialized. Python AST &amp; DAG parser active.</div>
+            <div class="log-line log-system">[00:00:00] [STORAGE] Cloudflare R2 bucket target configured. Egress: $0.</div>
+            <div class="log-line log-info">[00:00:00] [DATABASE] Connected to Aiven PostgreSQL. Rolling 3-run retention active.</div>
+            <div class="log-line log-success">[00:00:00] [ENGINE] Ready to receive execution jobs.</div>
+          </div>
+        </div>
+
+        <!-- Rolling 3-Run Aiven History Cards -->
+        <div class="card">
+          <h3>Recent Executions (Rolling 3-Run Aiven Retention)</h3>
+          <div id="history-cards-container" class="history-grid">
+            <div class="history-card placeholder-card">
+              <p>No executions logged yet. Click "Execute Master" to run your first pipeline.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- ======================================================== -->
-    <!-- TAB 3: NODE CONVERTER & AST DE-BLOATER                   -->
+    <!-- TAB 3: WORKFLOWS HIERARCHY (Matching Reference UI)       -->
+    <!-- ======================================================== -->
+    <section id="tab-hierarchy" class="tab-pane">
+      <div class="studio-pane-container">
+        <div class="pane-header-row">
+          <div>
+            <div class="title-with-pill">
+              <h2>Workflows Hierarchy</h2>
+              <span id="wf-count-badge" class="count-pill">3 Pipelines</span>
+            </div>
+            <p class="pane-subtitle">Decoupled Two-Tier orchestration hierarchy connected to Aiven PostgreSQL.</p>
+          </div>
+          <div class="pane-actions-row">
+            <button id="btn-refresh-hierarchy" class="btn btn-secondary">🔄 Refresh</button>
+            <button id="btn-add-hierarchy-wf" class="btn btn-primary">+ Add Workflow</button>
+          </div>
+        </div>
+
+        <!-- Filter & Status Bar in Card -->
+        <div class="table-card">
+          <div class="filter-status-bar">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="hierarchy-search-input" placeholder="Filter workflows by name or description...">
+            </div>
+            <div class="status-summary-pills">
+              <span class="stat-indicator active"><span class="dot-green"></span> <span id="active-wf-count">0 Active</span></span>
+              <span class="stat-indicator inactive"><span class="dot-grey"></span> <span id="inactive-wf-count">3 Inactive</span></span>
+            </div>
+          </div>
+
+          <!-- Workflows Table -->
+          <div style="overflow-x: auto;">
+            <table class="hierarchy-table">
+              <thead>
+                <tr>
+                  <th style="width: 60px;">#</th>
+                  <th>WORKFLOW TITLE &amp; TOPOLOGY</th>
+                  <th style="width: 140px;">STATUS</th>
+                  <th style="width: 180px;">LAST UPDATED</th>
+                  <th style="width: 150px;">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="hierarchy-table-body">
+                <!-- Dynamically populated by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: AIVEN POSTGRESQL (CLOUD DATABASE CONSOLE)          -->
+    <!-- ======================================================== -->
+    <section id="tab-database" class="tab-pane">
+      <div class="studio-pane-container">
+        <div class="pane-header-row">
+          <div>
+            <h2>Aiven PostgreSQL Cloud Database Console</h2>
+            <p class="pane-subtitle">Persistent state layer storing workflow graphs, prompt presets, and rolling 3-run execution records.</p>
+          </div>
+          <div class="pane-actions-row">
+            <button id="btn-test-connection" class="btn btn-secondary">🔄 Test Connection</button>
+            <button id="btn-sync-database" class="btn btn-primary">⚡ Sync Disk ⇄ Aiven</button>
+          </div>
+        </div>
+
+        <!-- Database Health Banner -->
+        <div id="db-health-banner" class="db-card-banner">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div id="db-health-dot" class="dot-large-green"></div>
+            <div>
+              <div id="db-banner-title" class="db-title">Aiven Cloud PostgreSQL: Connected</div>
+              <div id="db-banner-subtitle" class="db-subtitle">Latency: <span id="db-latency-val" style="color: #2563eb; font-weight: 600;">-- ms</span> · Mode: <span id="db-mode-val" style="color: #16a34a; font-weight: 600;">Aiven Cloud</span></div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 14px;">
+            <div class="stat-badge">
+              <span class="stat-num" id="db-wf-count">0</span>
+              <span class="stat-desc">Workflows</span>
+            </div>
+            <div class="stat-badge">
+              <span class="stat-num" id="db-logs-count">0</span>
+              <span class="stat-desc">Exec Logs</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schema Diagnostic Grid -->
+        <div class="db-details-grid">
+          <div class="card">
+            <h3>Schema Diagnostics</h3>
+            <div id="db-diag-list" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Populated by app.js -->
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Cloud Workflows in Aiven</h3>
+            <div id="db-workflows-list">
+              <p style="color: var(--text-muted); font-size: 13px;">Loading workflows from database...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: SECRETS & ENV (CREDENTIAL MANAGER)                 -->
+    <!-- ======================================================== -->
+    <section id="tab-secrets" class="tab-pane">
+      <div class="studio-pane-container">
+        <div class="pane-header-row">
+          <div>
+            <h2>Secrets &amp; Environment Configuration</h2>
+            <p class="pane-subtitle">Manage cloud database connection strings and Cloudflare R2 credentials directly from the browser UI.</p>
+          </div>
+          <div class="pane-actions-row">
+            <button id="btn-reload-env" class="btn btn-secondary">🔄 Reload from Disk</button>
+            <button id="btn-save-env" class="btn btn-primary">💾 Save &amp; Connect</button>
+          </div>
+        </div>
+
+        <div class="secrets-grid">
+          <!-- Aiven PostgreSQL Configuration -->
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3>1. Aiven PostgreSQL Database</h3>
+              <span id="env-status-badge" class="count-pill">Checking...</span>
+            </div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px;">Paste your Aiven URI. Format: <code>postgres://avnadmin:password@host:port/defaultdb?sslmode=require</code></p>
+            
+            <div class="form-group">
+              <label>DATABASE_URL:</label>
+              <input type="password" id="env-db-url" class="form-control" placeholder="postgres://avnadmin:***@***.aivencloud.com:***/***">
+            </div>
+          </div>
+
+          <!-- Cloudflare R2 Storage Configuration -->
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3>2. Cloudflare R2 Storage ($0 Egress)</h3>
+            </div>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px;">Used for permanent storage of generated PNG images and MP4 video output files.</p>
+
+            <div class="form-group">
+              <label>R2_ACCOUNT_ID:</label>
+              <input type="password" id="env-r2-account" class="form-control" placeholder="Cloudflare Account ID">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label>R2_ACCESS_KEY_ID:</label>
+                <input type="password" id="env-r2-access" class="form-control" placeholder="Access Key ID">
+              </div>
+              <div class="form-group">
+                <label>R2_SECRET_ACCESS_KEY:</label>
+                <input type="password" id="env-r2-secret" class="form-control" placeholder="Secret Access Key">
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label>R2_BUCKET_NAME:</label>
+                <input type="text" id="env-r2-bucket" class="form-control" placeholder="comfyui-outputs">
+              </div>
+              <div class="form-group">
+                <label>R2_PUBLIC_DOMAIN:</label>
+                <input type="text" id="env-r2-domain" class="form-control" placeholder="https://pub-r2.yourdomain.com">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 6: WORKFLOW CONVERTER                                 -->
+    <!-- ======================================================== -->
+    <section id="tab-workflow-converter" class="tab-pane">
+      <div class="studio-pane-container">
+        <div class="pane-header-row">
+          <div>
+            <h2>Workflow Ingestion, De-cluttering &amp; Explainer</h2>
+            <p class="pane-subtitle">Paste any ComfyUI JSON. The engine auto-repairs syntax, prunes reroutes, audits nodes, and explains the pipeline.</p>
+          </div>
+        </div>
+
+        <div class="converter-grid">
+          <div class="card">
+            <h3>1. Paste External ComfyUI JSON</h3>
+            <textarea id="wf-json-input" placeholder="Paste workflow.json or workflow_api.json content here..."></textarea>
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+              <button id="btn-analyze-wf" class="btn btn-primary">🔍 Analyze &amp; De-clutter</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>2. Analysis &amp; Checklist</h3>
+            <div id="wf-audit-results" class="audit-box">
+              <p style="color: var(--text-muted); font-style: italic;">Paste a workflow and click Analyze to view clutter reduction and explanation.</p>
+            </div>
+            <div id="wf-action-buttons" style="display: none; margin-top: 14px; gap: 10px;">
+              <button id="btn-load-cleaned-canvas" class="btn btn-success">📥 Load on Canvas</button>
+              <button id="btn-export-python-script" class="btn btn-secondary">🐍 Standalone Script</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="python-export-wrapper" class="card" style="display: none; margin-top: 16px;">
+          <h3>Generated Standalone Kaggle Python Script</h3>
+          <textarea id="python-script-text" readonly style="height: 180px;"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 7: COMMUNITY NODE CONVERTER                           -->
     <!-- ======================================================== -->
     <section id="tab-node-converter" class="tab-pane">
-      <div class="converter-container">
-        <div class="converter-header">
-          <h2>Community Node Ingestion & Adapter Generator</h2>
-          <p>Paste Python code from any ComfyUI custom node (e.g. <code>KJNodes</code> or <code>rgthree</code>). The AST parser extracts the pure PyTorch mathematical function, strips UI/WebSocket bloat, and registers it into the app.</p>
+      <div class="studio-pane-container">
+        <div class="pane-header-row">
+          <div>
+            <h2>Community Node Ingestion &amp; Adapter Generator</h2>
+            <p class="pane-subtitle">Paste Python code from any ComfyUI custom node to extract pure mathematical PyTorch adapters.</p>
+          </div>
         </div>
 
         <div class="converter-grid">
           <div class="card">
             <h3>1. Source ComfyUI Node Code (.py)</h3>
             <textarea id="node-code-input" placeholder="Paste the ComfyUI Python node class code here..."></textarea>
-            <div class="card-footer">
-              <button id="btn-scan-nodes" class="btn btn-secondary">🔎 Scan Classes in Code</button>
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+              <button id="btn-scan-nodes" class="btn btn-secondary">🔎 Scan Classes</button>
             </div>
           </div>
 
           <div class="card">
-            <h3>2. Select Node to Extract & Convert</h3>
+            <h3>2. Select Node &amp; Convert</h3>
             <div class="form-group">
               <label>Target Node Class:</label>
               <select id="detected-nodes-select" disabled>
@@ -230,10 +482,10 @@
               </select>
             </div>
             <div id="node-preview-box" class="audit-box">
-              <p class="placeholder-text">Paste Python code on the left and click "Scan Classes in Code".</p>
+              <p style="color: var(--text-muted); font-style: italic;">Paste Python code on the left and click "Scan Classes".</p>
             </div>
-            <div class="card-footer">
-              <button id="btn-convert-node" class="btn btn-primary" disabled>⚡ Convert & Register into App</button>
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+              <button id="btn-convert-node" class="btn btn-primary" disabled>⚡ Convert &amp; Register</button>
             </div>
           </div>
         </div>
@@ -253,6 +505,57 @@
     </div>
   </footer>
 
+  <!-- Modal: Add Workflow Dialog -->
+  <div id="add-wf-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>+ Add Workflow to Hierarchy</h3>
+        <button id="btn-close-add-wf" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Workflow Identifier (Filename):</label>
+          <input type="text" id="new-wf-name" class="form-control" placeholder="e.g. Subprocess-C">
+        </div>
+        <div class="form-group">
+          <label>Display Title:</label>
+          <input type="text" id="new-wf-title" class="form-control" placeholder="e.g. Subprocess C (Scrape &amp; Score)">
+        </div>
+        <div class="form-group">
+          <label>Description / Topology:</label>
+          <input type="text" id="new-wf-desc" class="form-control" placeholder="e.g. Scraping, screening, multi-tier AI scoring subprocess">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Hierarchy Role:</label>
+            <select id="new-wf-role">
+              <option value="master">Master Workflow</option>
+              <option value="subprocess">Subprocess (Child)</option>
+            </select>
+          </div>
+          <div class="form-group" id="parent-wf-group" style="display: none;">
+            <label>Parent Master Workflow:</label>
+            <select id="new-wf-parent">
+              <option value="Parent-Workflow-AB">Parent-Workflow-AB</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Starter Pipeline Template:</label>
+          <select id="new-wf-template">
+            <option value="flux_txt2img">Flux Text-to-Image Preset</option>
+            <option value="ltx_video">LTX-2.5 Video Generation Preset</option>
+            <option value="blank">Blank Canvas</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-add-wf" class="btn btn-secondary">Cancel</button>
+        <button id="btn-submit-add-wf" class="btn btn-primary">Create Workflow</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Media Output Viewer -->
   <div id="media-modal" class="modal">
     <div class="modal-content">
@@ -260,7 +563,7 @@
         <h3>Generated Media Preview</h3>
         <button id="btn-close-modal" class="btn-close">&times;</button>
       </div>
-      <div class="modal-body" id="modal-media-container">
+      <div class="modal-body" id="modal-media-container" style="justify-content: center; align-items: center; max-height: 480px; overflow: hidden;">
         <!-- Rendered Image or Video will be injected here -->
       </div>
       <div class="modal-footer">

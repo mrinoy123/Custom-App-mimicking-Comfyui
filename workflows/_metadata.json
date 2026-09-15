@@ -1,0 +1,52 @@
+{
+  "Parent-Workflow-AB": {
+    "name": "Parent-Workflow-AB",
+    "title": "Parent-Workflow-AB",
+    "role": "master",
+    "description": "Production Two-Tier master sequential orchestrator with memory barrier",
+    "parent_id": null,
+    "active": false,
+    "selected": true,
+    "updated_at": "Updated Sep 11, 08:04 PM"
+  },
+  "Subprocess-B": {
+    "name": "Subprocess-B",
+    "title": "Subprocess B (Scrape & Score)",
+    "role": "subprocess",
+    "description": "Scraping, screening, multi-tier AI scoring & Aiven vault collector subprocess",
+    "parent_id": "Parent-Workflow-AB",
+    "active": false,
+    "selected": false,
+    "updated_at": "Updated Sep 7, 03:35 PM"
+  },
+  "Workflow-C": {
+    "name": "Workflow-C",
+    "title": "Workflow-C",
+    "role": "master",
+    "description": "Independent Workflow C",
+    "parent_id": null,
+    "active": false,
+    "selected": false,
+    "updated_at": "Updated Sep 13, 04:41 PM"
+  },
+  "flux_txt2img": {
+    "name": "flux_txt2img",
+    "title": "Flux Text-to-Image",
+    "role": "master",
+    "description": "Direct FlowMatch latent diffusion pipeline",
+    "parent_id": null,
+    "active": true,
+    "selected": false,
+    "updated_at": "Updated Sep 14, 11:20 AM"
+  },
+  "ltx_video": {
+    "name": "ltx_video",
+    "title": "LTX-2.5 Video Generation",
+    "role": "master",
+    "description": "High-throughput 768x512 video diffusion pipeline",
+    "parent_id": null,
+    "active": false,
+    "selected": false,
+    "updated_at": "Updated Sep 15, 09:15 AM"
+  }
+}
