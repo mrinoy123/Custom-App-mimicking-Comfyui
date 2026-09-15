@@ -1,0 +1,39 @@
+# Environment variables & secrets (Never commit credentials)
+.env
+*.env
+!.env.example
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Local model weights / checkpoints (Store on HuggingFace/Civitai, not GitHub)
+models/
+*.safetensors
+*.gguf
+*.ckpt
+*.pt
+*.bin
+
+# Local generated output media (Stored permanently on Cloudflare R2)
+outputs/
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.webp
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Virtual environments
+venv/
+.venv/
+env/

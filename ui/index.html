@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom ComfyUI Micro-Engine</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">MicroEngine</span>
+        <span class="badge">Decoupled</span>
+      </div>
+
+      <!-- Tab Switcher -->
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="tab-canvas">🎨 Workflow Canvas</button>
+        <button class="tab-btn" data-tab="tab-workflow-converter">🔄 Workflow Converter</button>
+        <button class="tab-btn" data-tab="tab-node-converter">⚡ Node Converter</button>
+      </nav>
+    </div>
+
+    <!-- Hardware & Telemetry Bar -->
+    <div class="header-right">
+      <div class="telemetry-pill">
+        <span class="dot live"></span>
+        <span class="telemetry-label">VRAM:</span>
+        <span id="vram-val" class="telemetry-value">0.0 GB</span>
+      </div>
+      <button id="btn-save-db" class="btn btn-secondary">💾 Save to Aiven</button>
+      <button id="btn-queue" class="btn btn-primary">▶ Queue Execution</button>
+    </div>
+  </header>
+
+  <!-- Main Viewport Container -->
+  <main class="main-container">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: WORKFLOW CANVAS                                    -->
+    <!-- ======================================================== -->
+    <section id="tab-canvas" class="tab-pane active">
+      <!-- Canvas Control Toolbar -->
+      <div class="canvas-toolbar">
+        <div class="toolbar-group">
+          <label>Add Node:</label>
+          <select id="node-palette-select">
+            <option value="">-- Select Node to Add --</option>
+            <option value="UNETLoaderGGUF">UNET Loader (GGUF Q4)</option>
+            <option value="CLIPTextEncode">CLIP Text Encode (Prompt)</option>
+            <option value="KSampler">KSampler (FlowMatch Euler)</option>
+            <option value="VAEDecode">VAE Decode</option>
+            <option value="SaveImage">Save Image (PNG)</option>
+            <option value="SaveVideo">Save Video (MP4)</option>
+          </select>
+          <button id="btn-add-node" class="btn btn-sm btn-secondary">+ Add</button>
+        </div>
+
+        <div class="toolbar-group">
+          <label>Preset:</label>
+          <select id="workflow-preset-select">
+            <option value="flux_txt2img">Flux Text-to-Image</option>
+            <option value="ltx_video">LTX-2.5 Video Generation</option>
+          </select>
+          <button id="btn-load-preset" class="btn btn-sm btn-secondary">Load</button>
+        </div>
+
+        <div class="toolbar-group">
+          <button id="btn-toggle-inspector" class="btn btn-sm btn-secondary">🔬 Node Payload Inspector</button>
+          <button id="btn-clear-canvas" class="btn btn-sm btn-danger">Clear</button>
+        </div>
+      </div>
+
+      <!-- Node Graph Interactive Canvas -->
+      <div id="canvas-wrapper">
+        <canvas id="graph-canvas"></canvas>
+
+        <!-- Floating Draggable VRAM HUD -->
+        <div id="vram-hud" class="floating-hud">
+          <div class="hud-header" id="vram-hud-header">
+            <div class="hud-title">
+              <span class="hud-dot"></span>
+              <span>GPU TELEMETRY</span>
+            </div>
+            <div class="hud-actions">
+              <button id="btn-purge-vram" title="Manual VRAM Purge" class="hud-btn">🧹 Purge</button>
+              <button id="btn-toggle-hud-body" title="Collapse/Expand" class="hud-btn">−</button>
+            </div>
+          </div>
+          <div class="hud-body" id="vram-hud-body">
+            <div class="hud-device-name" id="hud-gpu-name">NVIDIA Tesla T4 (15.0 GB)</div>
+            <div class="hud-meter-wrap">
+              <div class="hud-meter-bar">
+                <div id="hud-meter-fill" class="hud-meter-fill" style="width: 25%;"></div>
+              </div>
+              <div class="hud-meter-labels">
+                <span id="hud-vram-used">0.0 GB Used</span>
+                <span id="hud-vram-percent">0%</span>
+              </div>
+            </div>
+            <div class="hud-stats-grid">
+              <div class="hud-stat-item">
+                <span class="stat-label">Allocated</span>
+                <span id="hud-stat-allocated" class="stat-val">0.0 GB</span>
+              </div>
+              <div class="hud-stat-item">
+                <span class="stat-label">Reserved</span>
+                <span id="hud-stat-reserved" class="stat-val">0.0 GB</span>
+              </div>
+              <div class="hud-stat-item">
+                <span class="stat-label">Free</span>
+                <span id="hud-stat-free" class="stat-val">15.0 GB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PayloadDiffEngine: Side Inspector Drawer -->
+        <aside id="inspector-panel" class="inspector-drawer">
+          <div class="inspector-header">
+            <div class="inspector-title">
+              <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">PayloadDiffEngine</span>
+              <h4>Node Output Inspector</h4>
+            </div>
+            <button id="btn-close-inspector" class="btn-close">&times;</button>
+          </div>
+          
+          <div class="inspector-controls">
+            <!-- Toggle: Isolated Delta vs Cumulative Full -->
+            <div class="diff-toggle-group">
+              <button id="toggle-delta" class="diff-btn active">⚡ Isolated Delta (This Node Only)</button>
+              <button id="toggle-cumulative" class="diff-btn">📚 Cumulative Full (All Upstream)</button>
+            </div>
+            
+            <div class="form-group" style="margin-top: 10px;">
+              <label style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; display: block;">Select Executed Node:</label>
+              <select id="inspector-node-select" style="width: 100%;">
+                <option value="">-- Run workflow to inspect outputs --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="inspector-content">
+            <div class="inspector-meta" id="inspector-node-info">
+              <span class="meta-label">Node:</span> <span id="meta-node-name" class="meta-val">None</span>
+              <span class="meta-label" style="margin-left: 12px;">Mode:</span> <span id="meta-diff-mode" class="meta-val" style="color: #38bdf8;">Isolated Delta</span>
+            </div>
+            <pre id="inspector-json-display" class="json-viewer">// Outputs and tensor metadata will appear here after execution</pre>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: WORKFLOW CONVERTER & INSPECTOR                     -->
+    <!-- ======================================================== -->
+    <section id="tab-workflow-converter" class="tab-pane">
+      <div class="converter-container">
+        <div class="converter-header">
+          <h2>Workflow Ingestion, De-cluttering & Explainer</h2>
+          <p>Paste any ComfyUI JSON (e.g. from Civitai or GitHub). The engine prunes reroutes/notes, audits missing nodes, and explains the pipeline in plain English.</p>
+        </div>
+
+        <div class="converter-grid">
+          <!-- Input Box -->
+          <div class="card">
+            <h3>1. Paste External ComfyUI JSON</h3>
+            <textarea id="wf-json-input" placeholder="Paste workflow.json or workflow_api.json content here..."></textarea>
+            <div class="card-footer">
+              <button id="btn-analyze-wf" class="btn btn-primary">🔍 Analyze & De-clutter Workflow</button>
+            </div>
+          </div>
+
+          <!-- Analysis Results -->
+          <div class="card">
+            <h3>2. Analysis & Compatibility Checklist</h3>
+            <div id="wf-audit-results" class="audit-box">
+              <p class="placeholder-text">Paste a workflow and click Analyze to view clutter reduction, missing custom nodes, and natural language explanation.</p>
+            </div>
+            <div class="card-footer actions-footer" id="wf-action-buttons" style="display: none;">
+              <button id="btn-load-cleaned-canvas" class="btn btn-success">📥 Load Cleaned Graph onto Canvas</button>
+              <button id="btn-export-python-script" class="btn btn-secondary">🐍 Export Standalone Kaggle Script</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Python Script Output Viewer -->
+        <div id="python-export-wrapper" class="script-box" style="display: none;">
+          <h3>Generated Standalone Kaggle Python Script</h3>
+          <textarea id="python-script-text" readonly></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: NODE CONVERTER & AST DE-BLOATER                   -->
+    <!-- ======================================================== -->
+    <section id="tab-node-converter" class="tab-pane">
+      <div class="converter-container">
+        <div class="converter-header">
+          <h2>Community Node Ingestion & Adapter Generator</h2>
+          <p>Paste Python code from any ComfyUI custom node (e.g. <code>KJNodes</code> or <code>rgthree</code>). The AST parser extracts the pure PyTorch mathematical function, strips UI/WebSocket bloat, and registers it into the app.</p>
+        </div>
+
+        <div class="converter-grid">
+          <div class="card">
+            <h3>1. Source ComfyUI Node Code (.py)</h3>
+            <textarea id="node-code-input" placeholder="Paste the ComfyUI Python node class code here..."></textarea>
+            <div class="card-footer">
+              <button id="btn-scan-nodes" class="btn btn-secondary">🔎 Scan Classes in Code</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>2. Select Node to Extract & Convert</h3>
+            <div class="form-group">
+              <label>Target Node Class:</label>
+              <select id="detected-nodes-select" disabled>
+                <option value="">-- Scan code first --</option>
+              </select>
+            </div>
+            <div id="node-preview-box" class="audit-box">
+              <p class="placeholder-text">Paste Python code on the left and click "Scan Classes in Code".</p>
+            </div>
+            <div class="card-footer">
+              <button id="btn-convert-node" class="btn btn-primary" disabled>⚡ Convert & Register into App</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Live Execution Progress Drawer -->
+  <footer class="progress-bar-footer">
+    <div class="progress-status">
+      <span id="status-spinner" class="spinner" style="display: none;"></span>
+      <span id="status-text">Engine Ready</span>
+    </div>
+    <div class="progress-track">
+      <div id="progress-fill" class="progress-fill"></div>
+    </div>
+  </footer>
+
+  <!-- Modal: Media Output Viewer -->
+  <div id="media-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Generated Media Preview</h3>
+        <button id="btn-close-modal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-media-container">
+        <!-- Rendered Image or Video will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <a id="modal-download-link" href="#" target="_blank" class="btn btn-primary">Open Full Resolution (Cloudflare R2)</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client-Side Scripts -->
+  <script src="js/nodes.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/workflow_converter.js"></script>
+  <script src="js/node_converter.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

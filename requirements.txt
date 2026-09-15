@@ -1,0 +1,25 @@
+# Core Deep Learning & Tensor Execution
+torch>=2.2.0
+accelerate>=0.28.0
+safetensors>=0.4.0
+gguf>=0.10.0
+diffusers>=0.29.0
+transformers>=4.40.0
+sentencepiece>=0.2.0
+einops>=0.8.0
+
+# Graph Topology & Flow
+networkx>=3.0
+
+# Media Encoding & I/O
+imageio>=2.34.0
+imageio-ffmpeg>=0.4.9
+
+# Cloud Storage & Database Persistence
+boto3>=1.34.0
+psycopg2-binary>=2.9.9
+
+# Web Server & Real-time Telemetry
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
